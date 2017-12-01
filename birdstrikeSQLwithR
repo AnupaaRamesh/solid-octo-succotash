@@ -1,0 +1,122 @@
+# solid-octo-succotash
+Data Wrangling using R 
+rm(list = ls())
+#reading the CSV input file
+inputData <- read.csv("birdstrike-database.csv",
+                      header = T,
+                      fill = T)
+#segregating the CSV file into columns as per the tables assumed
+aircraftData <- inputData[, c(1:5)]
+flightData <- inputData[, c(6, 7, 8)]
+wildlifeData <- inputData[, c(9, 10)]
+strikeReportData <- inputData[, c(11:28)]
+#Creating Primary Key ID's for the required tables
+Aircraft_ID <- 1:99404
+Schedule_ID <- 1:99404
+Strike_ID <- 1:99404
+#Calling the required sql package
+require(sqldf)
+db <- dbConnect(SQLite(), dbname = "BirdStrike.sqlite")
+summary(db)
+#Creating Tables
+Aircraft_PK <- data.frame(Aircraft_ID, aircraftData)
+dbGetQuery(
+  db,
+  "CREATE TABLE Aircraft
+  (
+  Aircraft_ID INTEGER PRIMARY KEY, -- Autoincrement
+  Flight_Number TEXT,
+  Aircraft_type TEXT,
+  Num_of_engines TEXT,
+  Airline_Operator TEXT,
+  Make_Model TEXT
+  )"
+)
+dbWriteTable(db,
+             "Aircraft",
+             Aircraft_PK,
+             row.names = T,
+             append = T)
+
+Wildlife_PK <- data.frame(Strike_ID, wildlifeData)
+dbGetQuery(
+  db,
+  "CREATE TABLE Wildlife
+  (
+  Strike_ID INTEGER PRIMARY KEY, -- Autoincrement
+  Species_name TEXT,
+  Size_of_species TEXT
+  
+  )"
+)
+dbWriteTable(db,
+             "Wildlife",
+             Wildlife_PK,
+             row.names = T,
+             append = T)
+
+
+Flight_Schedule_PK_FK <-
+  data.frame(Schedule_ID, flightData, Aircraft_ID)
+dbGetQuery(
+  db,
+  "CREATE TABLE Flight_Schedule
+  (
+  Schedule_ID INTEGER PRIMARY KEY, -- Autoincrement
+  Flight_Date NUMERIC,
+  Origin_State TEXT,
+  origin_Airport_name TEXT,
+  Aircraft_ID TEXT
+  
+  )"
+)
+dbWriteTable(
+  db,
+  "Flight_Schedule",
+  Flight_Schedule_PK_FK,
+  row.names = T,
+  append = T
+)
+
+Strike_Report_FK <-
+  data.frame(strikeReportData, Schedule_ID, Strike_ID)
+dbGetQuery(
+  db,
+  "CREATE TABLE Strike_Report
+  (
+  Record_ID INTEGER PRIMARY KEY, -- Autoincrement
+  Reported_Date NUMERIC,
+  Reported_Time _of_day TEXT,
+  Phase_of_flight TEXT,
+  Altitude TEXT,
+  Location_Near_if_enroute TEXT,
+  Free_form_enroute TEXT,
+  Feet_abv_ground TEXT,
+  Speed_in_knots INTEGER,
+  Impact_to_flight TEXT,
+  Other_Effect TEXT,
+  Indicated_Damage TEXT,
+  time_out_of_service _hrs INTEGER,
+  Repairs_inflation_adj$ INTEGER,
+  min_Num_struck INTEGER,
+  max_Num_struck INTEGER,
+  Remains_of_wildlife_collected BOOLEAN,
+  Remains_of_wildlife_sent_to_Smithsonian BOOLEAN,
+  Schedule_ID INTEGER,
+  Strike_ID INTEGER
+  )"
+)
+dbWriteTable(db,
+             "Strike_Report",
+             Strike_Report_FK,
+             row.names = T,
+             append = T)
+
+
+#Query to retrieve strike reports where the min wildlife struck is greated then 2
+dbGetQuery(db,
+           "SELECT min_Num_struck from Strike_Report WHERE min_Num_struck > 2")
+
+#Query to retrieve strike reports where the speed in knots is greater than 150
+dbGetQuery(db,
+           "SELECT Speed_in_knots from Strike_Report WHERE Speed_in_knots > 150")
